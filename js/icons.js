@@ -1,0 +1,47 @@
+const P = {
+  dumbbell: 'M6.5 6.5v11M17.5 6.5v11M3.5 9.5v5M20.5 9.5v5M6.5 12h11',
+  chart: 'M3 3v18h18M7 15l4-4 3 3 6-6',
+  list: 'M9 3h6v3H9zM8 4.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V5.5a1 1 0 0 0-1-1h-2M9 11h6M9 15h4',
+  user: 'M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z',
+  play: 'M7 4.5v15l12.5-7.5z',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+  video: 'M3 6.5h12v11H3zM15 10.5l6-3.5v10l-6-3.5',
+  info: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 16v-4.5M12 8h.01',
+  clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6.5V12l3.5 2',
+  x: 'M18 6L6 18M6 6l12 12',
+  chevronDown: 'M6 9l6 6 6-6',
+  chevronLeft: 'M15 18l-6-6 6-6',
+  chevronRight: 'M9 18l6-6-6-6',
+  plus: 'M12 5v14M5 12h14',
+  upload: 'M12 15V3.5M7 8.5l5-5 5 5M4 20.5h16',
+  download: 'M12 3.5V15M7 10l5 5 5-5M4 20.5h16',
+  trash: 'M3.5 6.5h17M9 6.5V4h6v2.5M6 6.5l1 14h10l1-14',
+  logout: 'M9 21H5V3h4M16 17l5-5-5-5M21 12H9',
+  flame: 'M12 22c4 0 7-2.9 7-7 0-5-4-7.5-5-11.5-2 2-3 4.2-3 6.3-1.2-.9-2-2.2-2-4-2.2 2.2-4 5.2-4 9.2 0 4.1 3 7 7 7z',
+  trophy: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3',
+  timer: 'M10 2h4M12 14l3-3M12 22a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
+  pause: 'M7 4.5h3v15H7zM14 4.5h3v15h-3z',
+  trendUp: 'M3 17l6-6 4 4 8-8M15 7h6v6',
+  trendFlat: 'M3 12h18M16 7l5 5-5 5',
+  alert: 'M12 3.5l9.5 17H2.5zM12 10v4.5M12 17.5h.01',
+  calendar: 'M3.5 5h17v16h-17zM3.5 10h17M8 3v4M16 3v4',
+  edit: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',
+  file: 'M14 3H6v18h12V7zM14 3v4h4',
+  heart: 'M12 20.5s-8-4.8-8-10.6A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 2.9c0 5.8-8 10.6-8 10.6z',
+  zap: 'M13 2L4.5 13.5h7L10.5 22 19.5 10h-7z',
+  target: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 17.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM12 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
+  flag: 'M5 21.5V4M5 4h12l-2.5 4.5L17 13H5',
+  external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
+  scale: 'M4 4h16v16H4zM8.5 9.5a5 5 0 0 1 7 0M12 12l1.5-2.5',
+  ruler: 'M3 16.5L16.5 3 21 7.5 7.5 21zM7 12.5l2 2M10 9.5l2 2M13 6.5l2 2',
+  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 13.5l1.6 1.2-2 3.4-1.9-.7a7.6 7.6 0 0 1-2.1 1.2l-.3 2h-4l-.3-2a7.6 7.6 0 0 1-2.1-1.2l-1.9.7-2-3.4 1.6-1.2a7.4 7.4 0 0 1 0-3L2.4 9.3l2-3.4 1.9.7a7.6 7.6 0 0 1 2.1-1.2l.3-2h4l.3 2a7.6 7.6 0 0 1 2.1 1.2l1.9-.7 2 3.4-1.6 1.2a7.4 7.4 0 0 1 0 3z',
+  refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
+  minus: 'M5 12h14',
+  activity: 'M3 12h4l3-8 4 16 3-8h4',
+};
+
+export function icon(name, cls = '') {
+  return `<svg class="i ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${P[name] || ''}"/></svg>`;
+}
+
+export const LOGO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="${P.dumbbell}"/></svg>`;
