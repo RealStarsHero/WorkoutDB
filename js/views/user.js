@@ -1,5 +1,5 @@
 import { icon } from '../icons.js';
-import { esc, num, fmtNum, fmtDate, fmtDateTime, daysSince, relDays, todayISO, toast, confirmDialog, errMsg, getSettings, setSettings, lsDel } from '../utils.js';
+import { esc, num, fmtNum, fmtDate, fmtDateTime, daysSince, relDays, todayISO, toast, confirmDialog, errMsg, getSettings, setSettings, lsDel, sanitizeNum } from '../utils.js';
 import { ageFrom, fcMax, ZONES, zoneRange } from '../training.js';
 
 const OBIETTIVI = ['Ipertrofia (massa muscolare)', 'Forza', 'Dimagrimento / ricomposizione', 'Salute e benessere', 'Resistenza'];
@@ -91,7 +91,7 @@ export async function render(root, { app }) {
         <label class="field"><span>Data</span><input type="date" name="data" value="${todayISO()}" max="${todayISO()}" required></label>
         <div class="grid2">${MEASURES.map(([k, l, u]) => {
           const prev = latestOf(k);
-          return `<label class="field"><span>${l} (${u})</span><input name="${k}" inputmode="decimal" placeholder="${prev ? esc(fmtNum(prev[k], 1)) : ''}"></label>`;
+          return `<label class="field"><span>${l} (${u})</span><input name="${k}" inputmode="decimal" data-num="dec" maxlength="6" placeholder="${prev ? esc(fmtNum(prev[k], 1)) : ''}"></label>`;
         }).join('')}</div>
         <label class="field"><span>Note</span><input name="note" placeholder="Es. dopo una settimana di scarico"></label>
         <button class="btn btn-primary btn-block" type="submit">${icon('plus')} Salva misurazione</button>
@@ -105,8 +105,8 @@ export async function render(root, { app }) {
           <label class="field"><span>Sesso</span><select name="sesso">
             <option value="">—</option><option value="M" ${p.sesso === 'M' ? 'selected' : ''}>Uomo</option><option value="F" ${p.sesso === 'F' ? 'selected' : ''}>Donna</option></select></label>
           <label class="field"><span>Data di nascita</span><input type="date" name="data_nascita" value="${esc(p.data_nascita || '')}"></label>
-          <label class="field"><span>Altezza (cm)</span><input name="altezza_cm" inputmode="decimal" value="${esc(p.altezza_cm ?? '')}"></label>
-          <label class="field"><span>FC a riposo (bpm)</span><input name="fc_riposo" inputmode="numeric" value="${esc(p.fc_riposo ?? '')}" placeholder="facoltativa"></label>
+          <label class="field"><span>Altezza (cm)</span><input name="altezza_cm" inputmode="decimal" data-num="dec" maxlength="6" value="${esc(p.altezza_cm ?? '')}"></label>
+          <label class="field"><span>FC a riposo (bpm)</span><input name="fc_riposo" inputmode="numeric" data-num="int" maxlength="3" value="${esc(p.fc_riposo ?? '')}" placeholder="facoltativa"></label>
         </div>
         <label class="field"><span>Obiettivo</span><select name="obiettivo"><option value="">—</option>${OBIETTIVI.map((o) => `<option ${p.obiettivo === o ? 'selected' : ''}>${o}</option>`).join('')}</select></label>
         <div class="grid2">
@@ -142,6 +142,7 @@ export async function render(root, { app }) {
     // preferenze
     const s = getSettings();
     html += `<section class="section"><div class="section-title"><h2 class="h2">Preferenze</h2><span class="small muted">su questo dispositivo</span></div><div class="card">
+      <label class="switch-row"><span><b>Un esercizio aperto alla volta</b><span class="small muted">Aprendo un esercizio si chiudono gli altri</span></span><input type="checkbox" class="switch" data-set="singleOpen" ${s.singleOpen ? 'checked' : ''}></label>
       <label class="switch-row"><span><b>Suono fine recupero</b><span class="small muted">Beep quando il timer arriva a zero</span></span><input type="checkbox" class="switch" data-set="sound" ${s.sound ? 'checked' : ''}></label>
       <label class="switch-row"><span><b>Vibrazione</b><span class="small muted">Solo su Android</span></span><input type="checkbox" class="switch" data-set="vibrate" ${s.vibrate ? 'checked' : ''}></label>
       <label class="switch-row"><span><b>Schermo sempre acceso</b><span class="small muted">Durante l'allenamento</span></span><input type="checkbox" class="switch" data-set="wakelock" ${s.wakelock ? 'checked' : ''}></label>
@@ -194,6 +195,8 @@ export async function render(root, { app }) {
       btn.disabled = false;
     }
   };
+
+  root.oninput = (e) => { if (e.target.dataset?.num) sanitizeNum(e.target); };
 
   root.onchange = (e) => {
     const k = e.target.dataset.set;

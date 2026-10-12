@@ -1,5 +1,5 @@
 import { icon } from '../icons.js';
-import { esc, fmtSec, parseSec, num, fmtNum, fmtDate, toast, openModal, confirmDialog, errMsg, getSettings, unlockAudio, alarm, lsGet, lsSet, lsDel } from '../utils.js';
+import { esc, fmtSec, parseSec, num, fmtNum, fmtDate, toast, openModal, confirmDialog, errMsg, getSettings, unlockAudio, alarm, lsGet, lsSet, lsDel, sanitizeNum } from '../utils.js';
 import { hasLoad, isTime, isAmrap, targetChips, suggest, lastExposure, indexSets, sortRows, ageFrom, e1rm, isWorkPhase, zoneLabel } from '../training.js';
 import { showVideo, videoButton } from './common.js';
 
@@ -55,18 +55,21 @@ export async function render(root, { app }) {
     if (l) return { kg: l.kg ?? '', reps: l.reps ?? '', dur: l.durata_sec ?? r.durata_secondi ?? '' };
     const d = draft[k] || {};
     const { sug } = info.get(r.id_riga);
-    // il carico usato nelle serie precedenti di oggi vale anche per le successive
-    let prevKg = null;
-    for (let j = n - 1; j >= 1 && prevKg === null; j--) {
-      const kk = key(r.id_riga, j);
-      if (done.get(kk)?.kg != null) prevKg = done.get(kk).kg;
-      else if (draft[kk]?.kg) prevKg = draft[kk].kg;
-    }
     return {
-      kg: d.kg ?? prevKg ?? sug.kg ?? '',
+      kg: d.kg ?? sug.kg ?? '',
       reps: d.reps ?? sug.perSet?.[n - 1] ?? sug.reps ?? r.ripetizioni_min ?? '',
       dur: d.dur ?? sug.durata ?? r.durata_secondi ?? '',
     };
+  }
+
+  // carico della serie precedente di oggi: mostrato in grigio e usato se la cella resta vuota
+  function prevKgOf(r, n) {
+    for (let j = n - 1; j >= 1; j--) {
+      const kk = key(r.id_riga, j);
+      if (done.get(kk)?.kg != null) return done.get(kk).kg;
+      if (draft[kk]?.kg) return num(draft[kk].kg);
+    }
+    return null;
   }
 
   function setsHTML(r) {
@@ -87,15 +90,15 @@ export async function render(root, { app }) {
         const durVal = typeof p.dur === 'number' ? fmtSec(p.dur) : p.dur;
         h += `<div class="set-grid set-row t ${isDone ? 'done' : ''}" data-riga="${esc(r.id_riga)}" data-n="${i}">
           <span class="set-n">${i}</span>
-          <input class="set-in" data-f="dur" inputmode="numeric" value="${esc(durVal)}" aria-label="Durata serie ${i} (mm:ss)" onfocus="this.select()" ${ro}>
+          <input class="set-in" data-f="dur" data-num="time" maxlength="5" inputmode="numeric" value="${esc(durVal)}" aria-label="Durata serie ${i} (mm:ss)" onfocus="this.select()" ${ro}>
           <button class="set-play" data-act="timer" aria-label="Avvia timer serie ${i}" ${isDone ? 'disabled' : ''}>${icon('play')}</button>
           <button class="set-check" data-act="check" aria-label="${isDone ? 'Annulla' : 'Completa'} serie ${i}" aria-pressed="${isDone}">${icon('check')}</button>
         </div>`;
       } else {
         h += `<div class="set-grid set-row ${load ? '' : 'noload'} ${isDone ? 'done' : ''}" data-riga="${esc(r.id_riga)}" data-n="${i}">
           <span class="set-n">${i}</span>
-          ${load ? `<input class="set-in" data-f="kg" inputmode="decimal" placeholder="kg" value="${esc(p.kg === null ? '' : p.kg)}" aria-label="Kg serie ${i}" onfocus="this.select()" ${ro}>` : ''}
-          <input class="set-in" data-f="reps" inputmode="numeric" placeholder="${isAmrap(r) ? 'max' : esc(r.ripetizioni_min ?? '')}" value="${esc(p.reps === null ? '' : p.reps)}" aria-label="Ripetizioni serie ${i}" onfocus="this.select()" ${ro}>
+          ${load ? `<input class="set-in" data-f="kg" data-num="dec" maxlength="6" inputmode="decimal" placeholder="${esc(prevKgOf(r, i) != null ? fmtNum(prevKgOf(r, i), 2) : 'kg')}" value="${esc(p.kg === null ? '' : p.kg)}" aria-label="Kg serie ${i}" onfocus="this.select()" ${ro}>` : ''}
+          <input class="set-in" data-f="reps" data-num="int" maxlength="3" inputmode="numeric" placeholder="${isAmrap(r) ? 'max' : esc(r.ripetizioni_min ?? '')}" value="${esc(p.reps === null ? '' : p.reps)}" aria-label="Ripetizioni serie ${i}" onfocus="this.select()" ${ro}>
           <button class="set-check" data-act="check" aria-label="${isDone ? 'Annulla' : 'Completa'} serie ${i}" aria-pressed="${isDone}">${icon('check')}</button>
         </div>`;
       }
@@ -252,7 +255,7 @@ export async function render(root, { app }) {
       log.durata_sec = parseSec(val('dur')) ?? r.durata_secondi ?? null;
     } else {
       log.reps = num(val('reps'));
-      if (hasLoad(r)) log.kg = num(val('kg'));
+      if (hasLoad(r)) log.kg = num(val('kg')) ?? prevKgOf(r, n);
       if (log.reps === null) {
         toast('Inserisci le ripetizioni eseguite', 'error');
         rowEl.querySelector('[data-f="reps"]')?.focus();
@@ -276,6 +279,10 @@ export async function render(root, { app }) {
       refreshCard(r);
       const nextOpen = rows.slice(idx + 1).find((x) => !isComplete(x)) || rows.find((x) => !isComplete(x));
       if (nextOpen) {
+        if (settings.singleOpen) {
+          openCards.clear();
+          root.querySelectorAll('.ex.open').forEach((x) => x.classList.remove('open'));
+        }
         openCards.add(nextOpen.id_riga);
         refreshCard(nextOpen);
         setTimeout(() => cardEl(nextOpen)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
@@ -311,51 +318,94 @@ export async function render(root, { app }) {
     let remaining = target * 1000;
     let running = true;
     let lastT = Date.now();
+    if (timer) closeTimer();
     const ov = document.createElement('div');
     ov.className = 'overlay';
-    ov.innerHTML = `<div class="eyebrow">${esc(r.esercizio)} · Serie ${n}/${r.serie || 1}</div>
-      <div class="ring">
-        <svg viewBox="0 0 240 240"><circle cx="120" cy="120" r="110" class="ring-bg"/><circle cx="120" cy="120" r="110" class="ring-fg" id="ov-ring" stroke-dasharray="${RING_C}" stroke-dashoffset="0"/></svg>
-        <div class="ring-time" id="ov-t" role="timer">${fmtSec(target)}</div>
+    const zone = r.zona_fc ? esc(zoneLabel(r.zona_fc, age)) : '';
+    ov.innerHTML = `<div class="tm-full">
+        <button class="icon-btn tm-min" data-o="min" aria-label="Riduci il timer">${icon('minimize')}</button>
+        <div class="eyebrow">${esc(r.esercizio)} · Serie ${n}/${r.serie || 1}</div>
+        <div class="ring">
+          <svg viewBox="0 0 240 240"><circle cx="120" cy="120" r="110" class="ring-bg"/><circle cx="120" cy="120" r="110" class="ring-fg" stroke-dasharray="${RING_C}" stroke-dashoffset="0"/></svg>
+          <div class="ring-time" data-t role="timer">${fmtSec(target)}</div>
+        </div>
+        ${zone ? `<div class="chip chip-accent">${icon('heart')} ${zone}</div>` : ''}
+        <div class="row" style="gap:12px;margin-top:10px">
+          <button class="btn btn-ghost btn-lg" data-o="pause">${icon('pause')} Pausa</button>
+          <button class="btn btn-primary btn-lg" data-o="done">${icon('check')} Fatto</button>
+        </div>
+        <div class="row" style="gap:8px">
+          <button class="btn btn-sm" data-o="min">${icon('minimize')} Riduci</button>
+          <button class="btn btn-sm" data-o="cancel">Annulla</button>
+        </div>
       </div>
-      ${r.zona_fc ? `<div class="chip chip-accent">${icon('heart')} ${esc(zoneLabel(r.zona_fc, age))}</div>` : ''}
-      <div class="row" style="gap:12px;margin-top:22px">
-        <button class="btn btn-ghost btn-lg" data-o="pause">${icon('pause')} Pausa</button>
-        <button class="btn btn-primary btn-lg" data-o="done">${icon('check')} Fatto</button>
-      </div>
-      <button class="btn btn-sm" style="margin-top:14px" data-o="cancel">Annulla</button>`;
+      <div class="restbar show tm-mini" role="timer">
+        <button class="grow tm-expand" data-o="max" aria-label="Ingrandisci il timer">
+          <div class="rest-label">${esc(r.esercizio)}</div>
+          <div class="rest-time" data-t>${fmtSec(target)}</div>
+          <div class="rest-next">${zone || `Serie ${n}/${r.serie || 1}`}</div>
+        </button>
+        <button class="rb-btn" data-o="pause" data-compact aria-label="Pausa">${icon('pause')}</button>
+        <button class="rb-btn" data-o="done" data-compact aria-label="Fatto">${icon('check')}</button>
+        <button class="rb-btn" data-o="max" aria-label="Ingrandisci">${icon('maximize')}</button>
+        <i class="rest-progress" data-p></i>
+      </div>`;
     document.body.appendChild(ov);
-    const tEl = ov.querySelector('#ov-t');
-    const ring = ov.querySelector('#ov-ring');
+    const ring = ov.querySelector('.ring-fg');
+    const setMini = (on) => {
+      ov.classList.toggle('mini', on);
+      document.body.classList.toggle('timer-mini', on);
+      document.body.classList.toggle('no-scroll', !on);
+    };
+    setMini(false);
     const tick = () => {
       const now = Date.now();
       if (running) remaining -= now - lastT;
       lastT = now;
-      tEl.textContent = fmtSec(Math.ceil(Math.max(0, remaining) / 1000));
-      ring.setAttribute('stroke-dashoffset', String(RING_C * (1 - Math.max(0, remaining) / (target * 1000))));
+      const left = Math.max(0, remaining);
+      ov.querySelectorAll('[data-t]').forEach((el) => { el.textContent = fmtSec(Math.ceil(left / 1000)); });
+      ring.setAttribute('stroke-dashoffset', String(RING_C * (1 - left / (target * 1000))));
+      ov.querySelector('[data-p]').style.width = `${(left / (target * 1000)) * 100}%`;
       if (remaining <= 0) complete(target);
     };
-    const close = () => { clearInterval(timer?.iv); timer = null; ov.remove(); };
     const complete = (sec) => {
-      close();
+      closeTimer();
       alarm();
-      input.value = fmtSec(sec);
-      draft[key(r.id_riga, n)] = { ...draft[key(r.id_riga, n)], dur: input.value };
+      // la card potrebbe essere stata ridisegnata mentre il timer era ridotto
+      const liveRow = cardEl(r)?.querySelector(`.set-row[data-n="${n}"]`) || rowEl;
+      if (done.has(key(r.id_riga, n))) return;
+      const liveIn = liveRow.querySelector('[data-f="dur"]');
+      if (liveIn) liveIn.value = fmtSec(sec);
+      draft[key(r.id_riga, n)] = { ...draft[key(r.id_riga, n)], dur: fmtSec(sec) };
       saveDraft();
-      toggleSet(r, rowEl);
+      toggleSet(r, liveRow);
     };
     ov.onclick = (e) => {
       const b = e.target.closest('[data-o]');
       if (!b) return;
-      if (b.dataset.o === 'pause') {
+      const o = b.dataset.o;
+      if (o === 'pause') {
         running = !running;
         lastT = Date.now();
-        b.innerHTML = running ? `${icon('pause')} Pausa` : `${icon('play')} Riprendi`;
-      } else if (b.dataset.o === 'done') {
+        ov.querySelectorAll('[data-o="pause"]').forEach((x) => {
+          x.innerHTML = 'compact' in x.dataset ? icon(running ? 'pause' : 'play') : `${icon(running ? 'pause' : 'play')} ${running ? 'Pausa' : 'Riprendi'}`;
+          x.setAttribute('aria-label', running ? 'Pausa' : 'Riprendi');
+        });
+      } else if (o === 'done') {
         complete(Math.max(1, Math.round(target - Math.max(0, remaining) / 1000)));
-      } else close();
+      } else if (o === 'min') setMini(true);
+      else if (o === 'max') setMini(false);
+      else closeTimer();
     };
     timer = { iv: setInterval(tick, 200), el: ov, tick };
+  }
+
+  function closeTimer() {
+    if (!timer) return;
+    clearInterval(timer.iv);
+    timer.el.remove();
+    timer = null;
+    document.body.classList.remove('timer-mini', 'no-scroll');
   }
 
   // ---------- fine / annulla ----------
@@ -471,11 +521,21 @@ export async function render(root, { app }) {
     const r = card && rows.find((x) => x.id_riga === card.dataset.ex);
     switch (act) {
       case 'back': location.hash = '#/home'; break;
-      case 'toggle':
-        if (openCards.has(r.id_riga)) openCards.delete(r.id_riga); else openCards.add(r.id_riga);
-        card.classList.toggle('open', openCards.has(r.id_riga));
-        b.setAttribute('aria-expanded', openCards.has(r.id_riga));
+      case 'toggle': {
+        const opening = !openCards.has(r.id_riga);
+        if (opening && settings.singleOpen) {
+          openCards.clear();
+          root.querySelectorAll('.ex.open').forEach((x) => {
+            x.classList.remove('open');
+            x.querySelector('.ex-head')?.setAttribute('aria-expanded', 'false');
+          });
+        }
+        if (opening) openCards.add(r.id_riga); else openCards.delete(r.id_riga);
+        card.classList.toggle('open', opening);
+        b.setAttribute('aria-expanded', String(opening));
+        if (opening && settings.singleOpen) setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
         break;
+      }
       case 'notes': {
         const n = card.querySelector('.notes');
         n.hidden = !n.hidden;
@@ -502,20 +562,10 @@ export async function render(root, { app }) {
   root.oninput = (e) => {
     const inp = e.target.closest('.set-in');
     if (!inp) return;
+    sanitizeNum(inp);
     const row = inp.closest('.set-row');
-    const f = inp.dataset.f;
     const k = key(row.dataset.riga, +row.dataset.n);
-    draft[k] = { ...draft[k], [f]: inp.value };
-    // il carico scritto nella serie si propaga alle serie successive non ancora toccate
-    if (f === 'kg') {
-      let sib = row.nextElementSibling;
-      while (sib) {
-        const sk = key(sib.dataset.riga, +sib.dataset.n);
-        const sInp = sib.querySelector('[data-f="kg"]');
-        if (sInp && !done.has(sk) && draft[sk]?.kg === undefined) sInp.value = inp.value;
-        sib = sib.nextElementSibling;
-      }
-    }
+    draft[k] = { ...draft[k], [inp.dataset.f]: inp.value };
     saveDraft();
   };
 
@@ -535,7 +585,7 @@ export async function render(root, { app }) {
   return () => {
     clearInterval(elapsedIv);
     stopRest();
-    if (timer) { clearInterval(timer.iv); timer.el.remove(); timer = null; }
+    closeTimer();
     document.removeEventListener('visibilitychange', onVis);
     try { wakeLock?.release(); } catch { /* ignora */ }
   };

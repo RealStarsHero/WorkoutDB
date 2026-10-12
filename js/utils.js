@@ -46,6 +46,19 @@ export function weekStart(d) {
   return x;
 }
 
+// Filtra i campi numerici mentre si scrive (data-num = "int" | "dec" | "time").
+// int: max 3 cifre · dec: max 3 cifre intere + 2 decimali (virgola o punto) · time: mm:ss
+export function sanitizeNum(inp) {
+  const v = inp.value;
+  let nv = v;
+  if (inp.dataset.num === 'int') nv = v.replace(/\D/g, '').slice(0, 3);
+  else if (inp.dataset.num === 'dec') {
+    const m = v.replace(/[^\d.,]/g, '').match(/^(\d{0,3})\d*([.,]\d{0,2})?/);
+    nv = m ? m[1] + (m[2] || '') : '';
+  } else if (inp.dataset.num === 'time') nv = v.replace(/[^\d:]/g, '').slice(0, 5);
+  if (nv !== v) inp.value = nv;
+}
+
 // ---------- UI: toast, modali ----------
 export function toast(msg, type = 'info', ms = 2800) {
   const host = document.getElementById('toasts');
@@ -125,7 +138,7 @@ export function parseVideo(url) {
 // ---------- Preferenze del dispositivo ----------
 const SKEY = 'wdb_settings';
 export function getSettings() {
-  const def = { sound: true, vibrate: true, wakelock: true };
+  const def = { sound: true, vibrate: true, wakelock: true, singleOpen: true };
   try { return { ...def, ...JSON.parse(localStorage.getItem(SKEY) || '{}') }; } catch { return def; }
 }
 export function setSettings(p) {

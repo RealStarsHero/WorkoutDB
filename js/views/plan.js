@@ -150,7 +150,12 @@ export async function render(root, { app }) {
 
     if (store.imports.length > 1) {
       h += `<section class="section"><div class="section-title"><h2 class="h2">Storico import</h2></div><div class="card">
-        ${store.imports.slice(0, 10).map((i) => `<div class="list-item"><span class="grow"><b>${esc(i.file_name || 'File CSV')}</b><span class="small muted">${esc(i.programmi || '')}</span></span><span class="small muted right">${esc(fmtDateTime(i.created_at))}<br>${i.righe} righe</span></div>`).join('')}
+        ${store.imports.slice(0, 10).map((i) => `<div class="list-item">
+          <span class="ins-ic">${icon('file')}</span>
+          <span class="grow"><b class="ellipsis">${esc(i.file_name || 'File CSV')}</b>
+          <span class="small muted ellipsis">${esc(i.programmi || '')}</span>
+          <span class="small muted">${esc(fmtDateTime(i.created_at))} · ${i.righe} righe${i.rimossi ? ` · ${i.rimossi} rimosse` : ''}</span></span>
+        </div>`).join('')}
       </div></section>`;
     }
 
