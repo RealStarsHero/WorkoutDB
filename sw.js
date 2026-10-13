@@ -1,7 +1,7 @@
 // Service worker: rende l'app installabile e veloce da riaprire.
 // Strategia "prima la rete": vedi sempre l'ultima versione pubblicata; la cache serve solo se sei offline.
 // I dati (Supabase) non passano mai dalla cache.
-const CACHE = 'workoutdb-v2';
+const CACHE = 'workoutdb-v3';
 const SHELL = [
   './', './index.html', './css/style.css', './manifest.webmanifest',
   './js/app.js', './js/config.js', './js/db.js', './js/icons.js', './js/training.js', './js/utils.js',
