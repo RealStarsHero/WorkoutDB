@@ -71,6 +71,8 @@ function supaDb(sb) {
     listImports: () => all('import_log', 'created_at', false),
     addImport: async (r) => ok(await sb.from('import_log').insert({ ...r, user_id: uid }).select().single()),
 
+    listLegenda: async () => ok(await sb.from('legenda').select('*').order('ordine').order('termine')),
+
     listSessions: () => all('workout_sessions', 'started_at', false),
     createSession: async (s) => ok(await sb.from('workout_sessions').insert({ ...s, user_id: uid }).select().single()),
     updateSession: async (id, patch) => ok(await sb.from('workout_sessions').update(patch).eq('id', id).select().single()),
@@ -120,6 +122,8 @@ function localDb() {
 
     async listImports() { return clone(d.imports).sort((a, b) => b.created_at.localeCompare(a.created_at)); },
     async addImport(r) { const x = { ...r, id: uuid(), created_at: now() }; d.imports.push(x); save(); return clone(x); },
+
+    async listLegenda() { return clone(d.legenda || []).sort((a, b) => (a.ordine ?? 0) - (b.ordine ?? 0)); },
 
     async listSessions() { return clone(d.sessions).sort((a, b) => b.started_at.localeCompare(a.started_at)); },
     async createSession(s) { const x = { started_at: now(), ...s, id: uuid() }; d.sessions.push(x); save(); return clone(x); },

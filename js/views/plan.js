@@ -1,5 +1,5 @@
 import { icon } from '../icons.js';
-import { esc, num, fmtDateTime, toast, confirmDialog, errMsg, downloadText, daysSince, relDays, parseVideo } from '../utils.js';
+import { esc, num, fmtDateTime, toast, confirmDialog, errMsg, downloadText, daysSince, relDays, parseVideo, openModal } from '../utils.js';
 import { groupPlan, targetChips, ageFrom, estimateMinutes } from '../training.js';
 import { exerciseDetail } from './common.js';
 
@@ -78,6 +78,56 @@ export function parsePlanCsv(text) {
   return { rows, errors, warnings };
 }
 
+// Legenda dei termini tecnici: letta ogni volta dalla tabella "legenda" del DB
+function openLegenda(db) {
+  openModal({
+    title: 'Legenda',
+    body: '<div class="legenda" aria-live="polite"><div class="spinner sm-dark"></div></div>',
+    onMount: async (el) => {
+      const box = el.querySelector('.legenda');
+      let items;
+      try {
+        items = await db.listLegenda();
+      } catch (e) {
+        const msg = /legenda/i.test(e?.message || '') && /schema cache|does not exist/i.test(e?.message || '')
+          ? 'La tabella della legenda non esiste ancora: esegui lo script supabase/legenda.sql nel SQL Editor di Supabase.'
+          : errMsg(e);
+        box.innerHTML = `<div class="banner warn">${icon('alert')}<span>${esc(msg)}</span></div>`;
+        return;
+      }
+      if (!items.length) {
+        box.innerHTML = `<p class="muted center">Nessun termine presente nella legenda.</p>`;
+        return;
+      }
+      const groups = [];
+      for (const it of items) {
+        const cat = it.categoria || 'Generale';
+        let g = groups.find((x) => x.cat === cat);
+        if (!g) groups.push(g = { cat, items: [] });
+        g.items.push(it);
+      }
+      box.innerHTML = `<label class="faq-search">${icon('search')}<input type="search" placeholder="Cerca un termine…" aria-label="Cerca un termine"></label>
+        ${groups.map((g) => `<section class="faq-group"><div class="eyebrow">${esc(g.cat)}</div>
+          ${g.items.map((it) => `<details class="faq" data-text="${esc(`${it.termine} ${it.descrizione} ${it.esempio || ''}`.toLowerCase())}">
+            <summary><span>${esc(it.termine)}</span>${icon('chevronDown')}</summary>
+            <div class="faq-body"><p>${esc(it.descrizione)}</p>${it.esempio ? `<p class="faq-ex"><b>Esempio:</b> ${esc(it.esempio)}</p>` : ''}</div>
+          </details>`).join('')}</section>`).join('')}
+        <p class="muted center faq-none" hidden>Nessun termine trovato.</p>`;
+      box.querySelector('input').oninput = (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        let any = false;
+        box.querySelectorAll('.faq-group').forEach((g) => {
+          let vis = 0;
+          g.querySelectorAll('.faq').forEach((f) => { const on = !q || f.dataset.text.includes(q); f.hidden = !on; if (on) vis++; });
+          g.hidden = !vis;
+          if (vis) any = true;
+        });
+        box.querySelector('.faq-none').hidden = any;
+      };
+    },
+  });
+}
+
 export async function render(root, { app }) {
   const { store, db } = app;
   let parsed = null;   // { file, rows, errors, warnings }
@@ -111,7 +161,8 @@ export async function render(root, { app }) {
   function draw() {
     const programs = groupPlan(store.plan);
     const lastImp = store.imports[0];
-    let h = `<header class="page-head"><div><div class="eyebrow">Programma</div><h1 class="h1">La tua <span class="accent">scheda</span></h1></div></header>`;
+    let h = `<header class="page-head"><div><div class="eyebrow">Programma</div><h1 class="h1">La tua <span class="accent">scheda</span></h1></div>
+      <button class="btn btn-ghost btn-sm" data-act="legenda">${icon('help')} Legenda</button></header>`;
 
     h += `<section class="card stack">
       <div class="row between"><h2 class="h2">Importa CSV</h2>
@@ -227,6 +278,7 @@ export async function render(root, { app }) {
     if (b.dataset.scheda) { selScheda = b.dataset.scheda; draw(); return; }
     if (b.dataset.riga) { const r = store.plan.find((x) => x.id_riga === b.dataset.riga); if (r) exerciseDetail(r, age); return; }
     switch (b.dataset.act) {
+      case 'legenda': openLegenda(db); break;
       case 'cancel': parsed = null; draw(); break;
       case 'import': doImport(b); break;
       case 'export': exportCsv(); break;
